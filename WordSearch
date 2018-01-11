@@ -1,0 +1,88 @@
+package Search;
+import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+
+
+public class WordSearch {
+	
+	
+	public static class TokenizerMapper extends Mapper<LongWritable,Text,Text,IntWritable>
+	{
+	private final static IntWritable one = new IntWritable(1);
+	private Text sentence = new Text();
+	   
+	      public void map(LongWritable key, Text value, Context context)throws IOException, InterruptedException
+	      {
+	    	  String mySearchText = context.getConfiguration().get("myText");
+	    	  String line = value.toString();
+	    	  String newline = line.toLowerCase();
+	    	  String newText = mySearchText.toLowerCase();
+	    	  
+	    	  if(mySearchText != null)
+	    	  {
+	    		  if(newline.contains(newText))
+	    		  {
+	    			  sentence.set(newline);
+	    			  context.write(sentence, one);
+	    		  }
+	    	  
+	        
+	 		}
+	      }
+	   }
+	 public static class TokenizerReducer extends Reducer<Text,IntWritable,Text,IntWritable>
+	   {
+		 private IntWritable result = new IntWritable();
+	     public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException
+	      {
+	        int sum = 0;
+	         
+	        	 for(IntWritable val : values){
+	        		 sum += val.get();
+	        	 }
+	        	
+	        	  result.set(sum);
+	        		context.write(key, result);
+	      }
+	   }
+
+	   
+
+//Main class
+	   
+	   public static void main(String[] args) throws Exception {
+			
+			Configuration conf = new Configuration(); // setting up configuration class
+			if(args.length > 2){
+				conf.set("myText",args[2]);
+				
+			}else{
+				System.out.println("No of arguments should be 3");
+				System.exit(0);
+			}
+			Job job1 = Job.getInstance(conf, "Word/String Search");  // set up the job
+		    job1.setJarByClass(WordSearch.class);  //setting up the main class to jar
+		    job1.setMapperClass(TokenizerMapper.class); // setting up the mapper class. 
+		    job1.setReducerClass(TokenizerReducer.class);//setting up the reducer class.If we want to check the mapper o/p only then comment this line
+		    job1.setNumReduceTasks(1); //setting up the number of reducers we want as output.If we want to check the mapper o/p only then comment this line
+		    job1.setMapOutputKeyClass(Text.class);
+		    job1.setMapOutputValueClass(IntWritable.class);
+		    job1.setOutputKeyClass(Text.class);
+		    job1.setOutputValueClass(IntWritable.class);
+		    FileInputFormat.addInputPath(job1, new Path(args[0]));//setting up file input path
+		    FileOutputFormat.setOutputPath(job1, new Path(args[1]));//setting up file output path
+		    System.exit(((Job) job1).waitForCompletion(true) ? 0 : 1);
+		  }
+}
+
+
