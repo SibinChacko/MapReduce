@@ -1,0 +1,91 @@
+package Speed;
+
+
+	import java.io.IOException;
+
+	import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IntWritable;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+
+
+	public class VehicleSpeedTest {
+		 public static class SpeedTestMapper extends Mapper<LongWritable,Text,Text,IntWritable>
+		   {
+		      public void map(LongWritable key, Text value, Context context)throws IOException, InterruptedException {
+		      
+		         try{
+		            String[] str = value.toString().split(",");
+		           
+		           
+		            int speed = Integer.parseInt(str[1]);
+		            
+		            
+		            
+		            context.write(new Text(str[0]), new IntWritable(speed));
+		         }
+		         catch (IndexOutOfBoundsException e) {
+		        	 System.out.println(e.getMessage());
+		 		} 
+		 		}
+		      }
+		   
+
+
+		   //Reducer class
+			
+		   public static class SpeedTestReducer extends Reducer<Text,IntWritable,Text,Text>
+		   {
+			  int OffPer = 0;
+		     public void reduce(Text key, Iterable <IntWritable> values, Context context) throws IOException, InterruptedException
+		      {
+		         int offence=0;
+		        int count = 0;
+		         for (IntWritable val : values)
+		         {
+		        	 if(val.get()>65){
+		        		
+		        	offence++;
+		        	}
+		        	 count++;
+		         }
+		        OffPer = (offence*100/count);
+		       String Percentvalue = String.format("%d", OffPer );  //like the printf i.e converting the long datatype back to string datatype
+		        String valuewithSign = Percentvalue + "%";
+		      	      
+			      context.write(key, new Text(valuewithSign));
+				
+				
+		      }
+	    
+		   }
+
+	//Main class
+		   
+		   public static void main(String[] args) throws Exception {
+				
+				Configuration conf = new Configuration();  // setting up configuration class
+				Job job = Job.getInstance(conf, "VEHICLE SPEED TEST");  // set up the job
+			    job.setJarByClass(VehicleSpeedTest.class);  //setting up the main class to jar
+			    job.setMapperClass(SpeedTestMapper.class); 
+		       job.setReducerClass(SpeedTestReducer.class);//setting up the reducer class.If we want to check the mapper o/p only then comment this line
+		      job.setNumReduceTasks(1); //setting up the number of reducers we want as output.If we want to check the mapper o/p only then comment this line
+			    job.setMapOutputKeyClass(Text.class);
+			    job.setMapOutputValueClass(IntWritable.class);
+			    job.setOutputKeyClass(Text.class);
+			    job.setOutputValueClass(Text.class);
+			    FileInputFormat.addInputPath(job, new Path(args[0]));//setting up file input path
+			    FileOutputFormat.setOutputPath(job, new Path(args[1]));//setting up file output path
+			    System.exit(job.waitForCompletion(true) ? 0 : 1);
+			  }
+	}
+
+
+	
